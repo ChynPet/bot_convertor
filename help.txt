@@ -1,0 +1,5 @@
+Commands:
+/help - show how to use bots
+/list, /lts - show list of all available rates
+/exchange - converts to the second currency with two decimal precision
+/history - an image graph chart which shows the exchange rate graph/chart of the selected currency for the last 7 days
