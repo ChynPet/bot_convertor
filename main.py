@@ -4,7 +4,8 @@ import json
 import redis
 from pathlib import Path
 import datetime
-
+import matplotlib.pyplot as plt
+import numpy as np
 
 file = Path('config.json')
 config = json.loads(file.read_text())
@@ -27,6 +28,7 @@ def send_list(message):
     list = ''
 
     if time_last_requests > recom_diff:
+        print(time_last_requests)
         get_response = requests.get(config['url'] + 'latest?base=USD').json()
         for currency, value in get_response['rates'].items():
             list += f'{currency}: {round(value, 2)}\n'
@@ -56,5 +58,47 @@ def send_exchange(message):
         res = f'Please, command format:\n /exchange $10 to CAD \n or \n /exchange 10 USD to CAD'
     bot.reply_to(message, res)
 
+@bot.message_handler(commands=['history'])
+def send_graph(message):
+    element_message = message.text.split(' ')
+
+    if len(element_message) == 2:
+        base, symbols = element_message[1].split('/')
+        end_at = datetime.date.today()
+        start_at = end_at - datetime.timedelta(days=7)
+        get_response = requests.get(config['url'] + f'history?start_at={start_at}&end_at={end_at}&base={base}&symbols={symbols}').json()
+
+        axis_x_names = []
+        months = []
+        x = []
+        y = []
+        for date, value in get_response['rates'].items():
+            axis_x_names.append(date)
+            year, month, day = date.split('-')
+            tmp = datetime.date(year=int(year), month=int(month), day=int(day))
+            months.append(tmp.month)
+            x.append(10000 * tmp.year + 100 * tmp.month + tmp.day)
+            y.append(value[symbols])
+
+        x = sorted(x)
+        months = sorted(months)
+
+        if months[0] == months[-1]:
+            t = x[0]
+            x = np.array(x) - t
+        else:
+            t = x[0]
+            x = np.array(x) - t
+
+            if (months[0] <= 7 and months[0] % 2 != 0) or (months[0] > 7 and months[0] % 2 == 0):
+                x[x > 10] = x[x > 10] % 10 + 1
+            else:
+                x[x > 10] = x[x > 10] % 10
+
+        plt.plot(x, y)
+        plt.savefig('graph.jpg')
+        bot.send_photo(message.chat.id, open('graph.jpg', 'rb'))
+    else:
+        bot.reply_to(message, "Please, enter /history USD/CAD")
 
 bot.polling(none_stop=True)
